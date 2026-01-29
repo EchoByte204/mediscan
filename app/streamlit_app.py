@@ -20,6 +20,36 @@ from src.models.model import create_model
 from src.data.preprocessing import DataAugmentation
 from src.explainability.gradcam import visualize_gradcam
 
+import urllib.request
+import os
+
+def download_model_if_needed():
+    """Download model from GitHub release if not present"""
+    model_path = 'models/saved/resnet50_best.pth'
+    
+    # Create directory if doesn't exist
+    os.makedirs('models/saved', exist_ok=True)
+    
+    # Check if model exists
+    if not os.path.exists(model_path):
+        st.info("📥 Downloading model (first time only, ~350 MB)...")
+        st.info("This may take 2-3 minutes. Please wait...")
+        
+        try:
+            # Download from GitHub release
+            url = "https://github.com/EchoByte204/mediscan/releases/download/v1.0.0/resnet50_best.pth"
+            
+            # Download with progress
+            urllib.request.urlretrieve(url, model_path)
+            st.success("✅ Model downloaded successfully!")
+            
+        except Exception as e:
+            st.error(f"❌ Error downloading model: {e}")
+            st.info("Please download manually from GitHub releases and place in models/saved/")
+            return None
+    
+    return model_path
+
 # Page configuration
 st.set_page_config(
     page_title="MediScan AI - COVID-19 Diagnosis",
@@ -66,11 +96,17 @@ if 'model_loaded' not in st.session_state:
 @st.cache_resource
 def load_model():
     """Load trained model (cached)"""
+    
+    # Download model if needed
+    MODEL_PATH = download_model_if_needed()
+    
+    if MODEL_PATH is None:
+        return None, None, None
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     MODEL_NAME = 'resnet50'
     NUM_CLASSES = 4
-    MODEL_PATH = Path(__file__).parent.parent / 'models' / 'saved' / 'resnet50_best.pth'
     
     # Create and load model
     model = create_model(MODEL_NAME, num_classes=NUM_CLASSES, pretrained=False)
